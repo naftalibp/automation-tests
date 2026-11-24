@@ -1,0 +1,30 @@
+# Checks every commit of a pull request, so that a change to this repository does not break the tests themselves.
+name: gate
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  # A new commit cancels the run of the previous one.
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check-types:
+    name: Check types
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Set up
+        uses: ./.github/actions/setup
+      - name: Check types
+        run: npm run check
+  run-tests:
+    name: Run tests
+    # Called the same way as from another repository.
+    uses: ./.github/workflows/run-tests.yml
+    secrets:
+      PROMPT_SECURITY_API_KEY: ${{ secrets.PROMPT_SECURITY_API_KEY }}

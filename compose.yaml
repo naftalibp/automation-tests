@@ -1,0 +1,29 @@
+# Run with npm run docker:client or npm run docker:e2e.
+x-tests: &tests
+  build: .
+  image: automation-tests
+  init: true
+  ipc: host
+  # No dedicated network, which would be left behind after each run.
+  network_mode: bridge
+
+services:
+  client:
+    <<: *tests
+    environment: [CI, ARTIFACTS, CLIENT_SITES]
+    volumes:
+      - ./playwright-report:/tests/playwright-report
+
+  e2e:
+    <<: *tests
+    environment: [CI, ARTIFACTS, TEST_ENV]
+    volumes:
+      - ./playwright-report:/tests/playwright-report
+      # Read by src/config.ts, as in a local run. Mounted, because the image must not contain a key.
+      - type: bind
+        source: .env.${TEST_ENV:-prod}
+        target: /tests/.env.${TEST_ENV:-prod}
+        read_only: true
+        bind:
+          # Fail if the file is missing, instead of creating a directory with its name.
+          create_host_path: false

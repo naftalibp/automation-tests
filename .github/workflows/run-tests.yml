@@ -1,0 +1,86 @@
+# Runs the tests against a backend. Started by hand, or called by another workflow (see "CI" in the README).
+name: run-tests
+on:
+  workflow_dispatch:
+    inputs:
+      api_domain:
+        description: Endpoint, without https:// (empty = default)
+        type: string
+      api_key:
+        description: API key (empty = repository secret). Required if you enter an endpoint
+        type: string
+  workflow_call:
+    inputs:
+      api_domain:
+        description: Endpoint, without https://
+        type: string
+    secrets:
+      PROMPT_SECURITY_API_KEY:
+        required: true
+      CHECKOUT_TOKEN:
+        description: Token that can read this repository. Needed by other repositories while it is private
+        required: false
+permissions:
+  contents: read
+jobs:
+  run-tests:
+    name: ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [client, e2e]
+    steps:
+      # GitHub does not treat an input as a secret, so this must come before any step that uses the key.
+      # It is read from the event file, because GitHub prints the value of an expression in the log.
+      - name: Hide an entered API key in the log
+        run: |
+          key=$(jq -r '.inputs.api_key // empty' "$GITHUB_EVENT_PATH")
+          if [ -n "$key" ]; then echo "::add-mask::$key"; fi
+      # Keeps the repository secret from being sent to an entered endpoint. Does not apply to callers, whose
+      # key is always their own.
+      - name: Require an API key with an entered endpoint
+        if: ${{ github.workflow_ref == job.workflow_ref && inputs.api_domain && !inputs.api_key }}
+        run: |
+          echo '::error::Enter the API key of this endpoint. The repository secret is only for the default endpoint.'
+          exit 1
+      - name: Check out
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # The repository of this file. The default is the repository of the caller.
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          token: ${{ secrets.CHECKOUT_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Set up
+        uses: ./.github/actions/setup
+      - name: Install Chromium
+        run: npx playwright install --no-shell chromium
+      # The tests use fresh, unmanaged Chromium profiles, so each one sideloads this pinned package.
+      - name: Fetch the extension and verify its pinned SHA-256
+        run: npm run extension:fetch
+      - name: Run the ${{ matrix.suite }} tests
+        id: tests
+        run: xvfb-run -a npm run test:${{ matrix.suite }}
+        env:
+          ARTIFACTS: all
+          PROMPT_SECURITY_API_DOMAIN: ${{ inputs.api_domain || vars.PROMPT_SECURITY_API_DOMAIN }}
+          # The client tests use a mock backend, so they do not get the key.
+          PROMPT_SECURITY_API_KEY: ${{ matrix.suite == 'e2e' && (inputs.api_key || secrets.PROMPT_SECURITY_API_KEY) || '' }}
+      # GitHub hides secrets in logs, but not in uploaded files.
+      - name: Check that the artifacts do not contain the API key
+        id: check-artifacts
+        if: ${{ !cancelled() && matrix.suite == 'e2e' && steps.tests.outcome != 'skipped' }}
+        run: npm run artifacts:check
+        env:
+          PROMPT_SECURITY_API_KEY: ${{ inputs.api_key || secrets.PROMPT_SECURITY_API_KEY }}
+      - name: Upload the report
+        if: ${{ !cancelled() && (matrix.suite == 'client' || steps.check-artifacts.outcome == 'success') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.suite }}-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+          overwrite: true

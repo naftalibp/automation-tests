@@ -1,0 +1,8 @@
+- img
+- text: Access Denied
+- img
+- img
+- text: "The domain gemini.google.com was blocked by your administrator Powered by:"
+- link:
+  - /url: https://prompt.security
+  - img

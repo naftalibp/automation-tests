@@ -1,0 +1,25 @@
+{
+  "name": "automation-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser acceptance tests for Prompt Security's GenAI access policy",
+  "engines": { "node": ">=20.19" },
+  "scripts": {
+    "extension:fetch": "node scripts/fetch-extension.mjs",
+    "check": "tsc --noEmit",
+    "test": "playwright test",
+    "test:client": "playwright test --project=client",
+    "test:e2e": "playwright test --project=e2e",
+    "report": "playwright show-report",
+    "artifacts:check": "node scripts/check-artifacts.mjs .artifacts/test-results playwright-report",
+    "docker:client": "docker compose run --rm --build client --project=client",
+    "docker:e2e": "docker compose run --rm --build e2e --project=e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "20.19.25",
+    "fflate": "0.8.2",
+    "typescript": "5.9.3"
+  }
+}

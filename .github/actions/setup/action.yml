@@ -1,0 +1,13 @@
+name: Set up
+description: Install Node.js and the npm packages.
+runs:
+  using: composite
+  steps:
+    - name: Install Node.js
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+    - name: Install npm packages
+      shell: bash
+      run: npm ci
