@@ -8,7 +8,7 @@ Playwright tests that check whether the Prompt Security browser extension enforc
 | [Client only](tests/client) | Same build | Mock API, real signed-out ChatGPT and Gemini ([or mock pages](#mock-pages)), no API key needed |
 | [Server only](tests/server/README.md) | None | Planned |
 
-Both suites run on every pull request and [on demand](#ci).
+Both suites run on every pull request and [on demand](#ci). Here is [a successful run](https://github.com/naftalibp/automation-tests/actions/runs/45373711719).
 
 ## Tests
 
